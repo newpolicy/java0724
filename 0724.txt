@@ -1,0 +1,350 @@
+**Multicast 전송
+=>그룹 내의 모든 곳에 데이터를 전송하는 방식의 통신
+=>UDP 통신 방식을 이용하고 D class 의 주소를 이용합니다.
+=>MulticastSocket 클래스를 이용하는데 받는 쪽은 포트 번호를 대입해서 생성하고 보내는 쪽은 포트번호 없이 생성합니다.
+=>joinGroup 과 leaveGroup 이라는 메소드를 이용해서 그룹에 참여하거나 빠져나올 수 있습니다.
+=>230.100.50.5는 IPv4로 입력한 주소이고 FF7E:230::1234는 ipv6로 입력한 주소입니다.
+
+1. 멀티캐스트 전송을 받는 클래스
+import java.net.DatagramPacket;
+import java.net.InetAddress;
+import java.net.MulticastSocket;
+
+public class MulticastReceive {
+
+	public static void main(String[] args) {
+		try {
+			//받는 멀티캐스트 소켓 만들기
+			MulticastSocket ms = new MulticastSocket(9999);
+			//그룹에 참여 - 224.0.0.0 부터 239.255.255.255 사이의 주소
+			ms.joinGroup(InetAddress.getByName("FF7E:230::1234"));
+			//무한 반복해서 메시지 받기
+			while(true) {
+				//바이트 배열 생성
+				byte [] b = new byte[512];
+				//데이터를 전송받을 패킷 만들기
+				DatagramPacket dp  =
+						new DatagramPacket(b, 512);
+				//데이터 받기 - 데이터가 올 때 까지 대기
+				ms.receive(dp);
+				//바이트 배열을 문자열로 변환하기
+				String msg = new String(b);
+				//화면에 공백을 제거하고 출력
+				System.out.println(msg.trim());
+			}
+		}catch(Exception e) {
+			System.out.println(e.getMessage());
+		}
+
+	}
+
+}
+
+
+2.Multicast 전송을 하는 클래스
+import java.net.DatagramPacket;
+import java.net.InetAddress;
+import java.net.MulticastSocket;
+import java.util.Scanner;
+
+public class MulticastSend {
+
+	public static void main(String[] args) {
+		try {
+			//보내는 멀티캐스트 소켓을 생성
+			MulticastSocket ms = new MulticastSocket();
+			//문자열을 입력받기 위한 스캐너 만들기
+			Scanner sc = new Scanner(System.in);
+			//닉네임 설정하기
+			System.out.print("닉네임 입력:");
+			String nick = sc.nextLine();
+			String str = nick + "님이 입장하셨습니다.";
+			//보내는 패킷 만들기 - 내용, 길이, 받을곳의 주소, 포트번호
+			DatagramPacket dp = 
+				new DatagramPacket(
+					str.getBytes(),
+					str.getBytes().length,
+					InetAddress.getByName("FF7E:230::1234"),
+					9999);
+			//데이터 전송
+			ms.send(dp);
+			
+			while(true) {
+				System.out.print("메시지(종료는 end):");
+				String msg = sc.nextLine();
+				if(msg.equals("end")) {
+					msg = nick + "님이 퇴장하셨습니다.";
+					//보내는 패킷 만들기 - 내용, 길이, 받을곳의 주소, 포트번호
+					dp = 
+						new DatagramPacket(
+							msg.getBytes(),
+							msg.getBytes().length,
+							InetAddress.getByName("FF7E:230::1234"),
+							9999);
+					//데이터 전송
+					ms.send(dp);
+					//소켓과 스캐너 닫기
+					ms.close();
+					sc.close();
+					break;
+				}else {
+					//메시지 만들기
+					msg =nick + ":" + msg;
+					//전송할 패킷 만들기
+					dp = 
+						new DatagramPacket(
+							msg.getBytes(),
+							msg.getBytes().length,
+							InetAddress.getByName("FF7E:230::1234"),
+							9999);
+					//데이터 전송
+					ms.send(dp);
+				}
+			}
+			
+		}catch(Exception e) {
+			System.out.println(e.getMessage());
+		}
+	
+	}
+
+}
+
+**udp broadcast 전송
+=>unicast 나 multicast는 특정한 컴퓨터의 IP 주소를 이용해서 데이터를 전송하는데 반해서 broadcast는 broadcast 주소를 이용해서 데이터를 전송하면 그 broadcast 영역 내에 있는 장비가 데이터를 전송받을 수 있는 방식입니다.
+
+
+**URL 통신
+=>웹 주소를 이용해서 데이터를 다운로드 받는 통신
+1.필요한 클래스
+1)URL로 인코딩하기 위한 클래스의 메소드
+인코딩을 위한 메소드: URLEncoder.encode(String url, String charset) - url을 charset으로 인코딩해서 리턴해주는 메소드입니다.
+
+디코딩을 위한 메소드: URLDecoder.decode(String url, String charset) - url을 charset으로 디코딩해서 리턴해주는 메소드입니다.
+
+2)URL 클래스
+=>다운로드 받을 URL을 만들어주는 클래스
+=>new URL(String 다운로드받을 주소): 잘못된 주소를 설정하면 예외가 발생합니다.
+예외처리를 반드시 해주어야 합니다.
+
+3)URLConnection 클래스
+=>URL을 이용해서 데이터를 주고 받을 수 있는 클래스
+=>URL 인스턴스의 openConnection 이라는 메소드를 호출해서 만드는데 HttpURLConnection 이나 HttpsURLConnection 자료형으로 형 변환해서 사용합니다.
+=>connectTimeout(접속 시도 시간 - 1/1000 초 단위로 설정), useCache(이전에 다운로드 받은 데이터를 사용할 지 여부를 boolean으로 설정) 옵션을 설정
+
+=>데이터를 가져오기 위해서는 스트림을 생성해야 하는데 getInputStream()을 호출하면 데이터를 읽어올 수 있는 스트림을 리턴하는데 이 스트림을 가지고 필요한 스트림을 생성해서 사용해야 합니다.
+문자열일 때는 BufferedReader(new InputStreamReader(?.getInputStream())) 으로 BufferedReader 객체를 만들어서 읽어야 하고 일반 파일일 때는 BufferedInputStream(?.getInputStream()) 으로 BufferedInputStream 객체를 만들어서 읽어야 합니다.
+
+4)Thread 클래스
+=>네트워크를 사용하는 로직은 시간이 얼마나 걸릴지 알 수 없고 느린 작업이기 때문에 스레드를 이용하지 않으면 프로그램이 얼어버리는 효과가 나타날 수 있으므로 스레드를 이용해서 작업을 하도록 하고 작업 중 이라는 것을 계속 표시해주는 것이 좋습니다.
+=>iOS 나 Android에서는 이러한 작업을 하지 않으면 동작하지 않거나 마켓에서 reject 됩니다.
+
+=>상속받는 클래스를 이용해서 만들기
+class ? extends Thread{
+	public void run(){
+		스레드로 수행할 내용;
+	}
+}
+
+? 변수명 = new ?();
+변수명.start();
+
+=>상속받는 클래스를 이용하지 않고 만들기
+Thread 변수명 = new Thread(){
+	public void run(){
+		스레드로 수행할 내용;
+	}
+};
+변수명.start();
+
+=>더조은 메인 페이지의 html 가져오기
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
+
+public class URLTextDownload {
+
+	public static void main(String[] args) {
+		try {
+			
+			//1. 다운로드 받을 주소 만들기
+			String addr = "http://www.tjoeun.co.kr/";
+			//한글이 포함된 경우라면 URLEncoder.encode 메소드를
+			//이용해서 한글을 인코딩합니다.
+			
+			//2. 주소를 가지고 URL 객체를 생성
+			URL url = new URL(addr);
+			
+			//3. URL 연결 객체를 생성합니다.
+			HttpURLConnection con = 
+				(HttpURLConnection)url.openConnection();
+			
+			
+			//4. 옵션을 설정합니다.
+			//연결이 안되면 30초까지 시도
+			con.setConnectTimeout(30000);
+			//이전에 받은 데이터가 있어도 사용하지 않도록 설정
+			con.setUseCaches(false);
+			
+			//5.다운로드 받을 스트림 생성
+			BufferedReader br = 
+				new BufferedReader(
+						new InputStreamReader(
+								con.getInputStream(), "EUC-KR") );
+			
+			//6.데이터를 읽어서 String으로 만들기
+			//문자열을 복사하지 않고 편집할 수 있는 클래스의 객체 만들기
+			StringBuilder sb = new StringBuilder();
+			while(true) {
+				//한 줄의 문자열을 읽기
+				String line = br.readLine();
+				//읽은 게 없으면 읽기 중단
+				if(line == null) {
+					break;
+				}
+				//읽은 데이터가 있으면 sb에 추가
+				sb.append(line + "\n");
+			}
+			//읽은 데이터를 String으로 변환
+			String html = sb.toString();
+			//화면에 출력
+			System.out.println(html);
+			
+			//7.사용한 객체 정리
+			br.close();
+			con.disconnect();
+			
+		}catch(Exception e) {
+			System.out.println(e.getMessage());
+		}
+
+	}
+
+}
+
+**이미지 파일을 다운로드 받아서 로컬 컴퓨터에 저장하기
+=>파일을 다운로드 받아서 저장할 때는 파일의 존재 여부를 확인해서 파일이 존재하는 경우는 다운로드 받지 않고 없는 경우에만 다운로드 받는 것이 좋습니다.
+=>파일이 업데이트 되는 경우라면 파일의 최후 수정 시간을 확인해서 다운로드 합니다.
+=>파일을 읽을 때는 BufferedReader 대신에 BufferedInputStream 객체를 만들어서 데이터를 바이트 단위로 읽어서 기록하면 됩니다.
+
+http://www.onlifezone.com/files/attach/images/962811/376/321/005/2.jpg 의 파일을 다운로드 받아서 2.jpg 파일로 저장하기
+
+C:\Users\503A5\Documents 디렉토리에 저장하기
+
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.PrintStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
+public class URLFileDownload {
+
+	public static void main(String[] args) {
+		try {
+			//다운로드 받을 주소 만들기
+			String addr = 
+				"http://www.onlifezone.com/files/attach/images/962811/376/321/005/2.jpg";
+			//addr에서 마지막 / 이후의 문자열을 가져오기
+			//마지막 /의 위치를 찾습니다.
+			int idx = addr.lastIndexOf("/");
+			//addr에서 idx+1 번째 글자부터 가져오기
+			String filename = addr.substring(idx + 1);
+			//System.out.println(filename);
+			
+			//filename을 이용해서 저장할 파일 경로 만들기
+			String filepath = 
+				"C:\\Users\\503A5\\Documents\\" + filename;
+			//파일이 존재하는지 확인
+			if((new File(filepath)).exists()) {
+				System.out.println("이미 파일이 존재합니다.");
+			}else {
+				//System.out.println("파일이 존재하지 않습니다.");
+				
+				//스레드 객체 생성
+				Thread th = new Thread() {
+					public void run() {
+						try {
+							//다운로드 받을 URL 만들기
+							URL url = new URL(addr);
+							//연결 객체 생성
+							HttpURLConnection con = 
+								(HttpURLConnection)url.openConnection();
+							//옵션 설정
+							con.setConnectTimeout(20000);
+							con.setUseCaches(false);
+							//바이트 단위로 다운로드 받기 위한 스트림 생성
+							BufferedInputStream bis = 
+								new BufferedInputStream(con.getInputStream());
+							//다운로드 받은 내용을 기록할 스트림
+							PrintStream ps = new PrintStream(filepath);
+							while(true) {
+								//512 바이트 단위로 데이터 읽기
+								byte [] b = new byte[512];
+								int r = bis.read(b);
+								//읽은 데이터가 없으면 읽기 중단
+								if(r <= 0) {
+									break;
+								}
+								//읽은 데이터를 ps를 이용해서 기록하기
+								ps.write(b, 0, r);
+							}
+							//전부 기록했으면 정리
+							ps.close();
+							bis.close();
+							con.disconnect();
+							
+						}catch(Exception e) {
+							System.out.println(e.getMessage());
+						}
+						
+					}
+				};
+				//스레드 시작
+				th.start();
+			}
+			
+		}catch(Exception e) {
+			System.out.println(e.getMessage());
+		}
+
+	}
+
+}
+
+
+**ggangpae1@gmail.com으로 메일 보내기
+파일이름 - 메일 제목은 성함
+
+**Database
+1. 데이터 저장
+1)변수: 메인 메모리에 저장한 것이므로 프로그램을 종료하면 모두 사라집니다.
+
+2)file: file에 저장하면 디스크(보조 기억장치)에 저장한 것이므로 직접 삭제를 하지 않는 한 데이터는 모두 보관이 됩니다.
+기록은 편리하지만 데이터가 순차적으로 저장되기 때문에 데이터를 순서대로 검색해야 해서 검색 효율이 나쁘고 데이터를 저장할 옵션 설정이 불가능하기 때문에 중복된 데이터가 저장될 가능성도 항상 존재합니다.
+
+3)database: 특별한 형식의 file을 이용하는 것인데 일반 파일보다 저장 오버헤드는 크지만 검색이 편리하고 저장 옵션을 설정할 수 있어서 데이터를 좀 더 안전하고 사용하기 편리하게 저장합니다.
+일반적으로 데이터베이스는 별도의 컴퓨터에 만들어 두고 접속해서 사용하는 경우가 많습니다.  
+
+2.DBMS 종류
+1)관계형 데이터베이스: 테이블의 집합으로 데이터를 표현하는 데이터베이스
+대표적인 소프트웨어로는 Oracle(Oracle에서 만든 현재 가장 많이 사용되는 상용 관계형 데이터베이스: 대기업이나 공공기관에서 주로 이용), MySQL(Maria DB, 오픈 소스로 출발했으나 지금은 Oracle이 인수해서 상용화된 버전도 있으며 오픈 소스 진영에서 동일한 엔진으로 MariaDB를 만들어서 배포하고 있습니다. 소규모 기업에서 많이 사용), MSSQL(Microsoft의 상용 데이터베이스), DB2(IBM에서 만든 데이터베이스 : 금융권에서 사용), sqlite(스마트 폰에 내장된 데이터베이스), Tibero(우리나라 TMax에서 만든 데이터베이스, 공공기관에서 많이 사용하고 있는 추세), Access....
+
+2)NoSQL: Map의 Collection으로 데이터를 표현하는 데이터베이스
+Not Only SQL의 약자로 SQL을 이용하지 않고 자바스크립트 함수 형식으로 데이터를 조작
+테이블을 만들지 않기 때문에 데이터 구조 변화에 빠르게 대응할 수 있는 데이터베이스입니다.
+트랜잭션의 개념이 없어서 관계형 데이터베이스보다 안정적이지는 못합니다.
+MongoDB, Cassandra(Java - Linux에서만 가능), Hive 등등이 있습니다.
+
+
+ggangpae1@gmail.com : ?.java 파일로 메일로 보내주세요
+
+
+
+
+
+
+
+
+
